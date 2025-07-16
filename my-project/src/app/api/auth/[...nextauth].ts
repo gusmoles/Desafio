@@ -18,9 +18,13 @@ const handler = NextAuth({
           where: { email: credentials.email },
         });
 
+        console.log("Usuário encontrado:", user);
+
         if (!user) return null;
 
         const isValid = await compare(credentials.password, user.password);
+        console.log("Senha válida?", isValid);
+
         if (!isValid) return null;
 
         return {
