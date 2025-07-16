@@ -36,6 +36,7 @@ const handler = NextAuth({
   },
   pages: {
     signIn: "/",
+    error: "/", // Redireciona para a tela de login em caso de erro
   },
 });
 

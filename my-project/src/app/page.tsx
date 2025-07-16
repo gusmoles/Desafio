@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -12,29 +14,94 @@ export default function LoginPage() {
   // Estados para login
   const [loginEmail, setLoginEmail] = useState("");
   const [loginEmailError, setLoginEmailError] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
 
   // Estados para cadastro
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerEmailError, setRegisterEmailError] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
+  const [registerName, setRegisterName] = useState("");
+  const [registerError, setRegisterError] = useState("");
+  const [registerSuccess, setRegisterSuccess] = useState("");
 
-  function handleLoginSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!validateEmail(loginEmail)) {
-      setLoginEmailError("E-mail inválido");
-      return;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  React.useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam === "CredentialsSignin") {
+      setTab('login');
+      setLoginError("Credenciais inválidas, por favor tente novamente.");
     }
-    setLoginEmailError("");
-    // ...restante do submit
-  }
+  }, [searchParams]);
 
   function handleRegisterSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setRegisterError("");
+    setRegisterSuccess("");
     if (!validateEmail(registerEmail)) {
       setRegisterEmailError("E-mail inválido");
       return;
     }
     setRegisterEmailError("");
-    // ...restante do submit
+    if (registerPassword.length < 8) {
+      setRegisterError("A senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+    if (registerPassword !== registerConfirmPassword) {
+      setRegisterError("As senhas não coincidem.");
+      return;
+    }
+    fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: registerName,
+        email: registerEmail,
+        password: registerPassword,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Erro ao cadastrar usuário.");
+        setRegisterSuccess("Cadastro realizado com sucesso! Faça login.");
+        setRegisterEmail("");
+        setRegisterPassword("");
+        setRegisterConfirmPassword("");
+        setRegisterName("");
+        setTab('login'); // Troca para aba de login automaticamente
+      })
+      .catch((err) => {
+        setRegisterError(err.message);
+      });
+  }
+
+  function handleLoginSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoginError("");
+    setLoginLoading(true);
+    if (!validateEmail(loginEmail)) {
+      setLoginEmailError("E-mail inválido");
+      setLoginLoading(false);
+      return;
+    }
+    setLoginEmailError("");
+    signIn("credentials", {
+      email: loginEmail,
+      password: loginPassword,
+      redirect: false,
+    }).then((res) => {
+      setLoginLoading(false);
+      console.log("Resultado do signIn:", res); // DEBUG
+      if (res?.ok === true && !res?.error) {
+        router.push("/parabens");
+      } else {
+        setLoginError("Credenciais inválidas, por favor tente novamente.");
+      }
+    });
   }
 
   return (
@@ -51,7 +118,7 @@ export default function LoginPage() {
       <div
         className="flex-1 flex items-center justify-center md:bg-white md:w-1/2 w-full min-h-screen md:min-h-0"
       >
-        <div className="w-full max-w-sm bg-white rounded-2xl shadow-md p-6 relative overflow-hidden min-h-[480px] md:my-0 my-8 flex flex-col items-center md:items-start">
+        <div className="w-full max-w-sm md:max-w-md bg-white rounded-2xl shadow-md p-6 relative overflow-hidden min-h-[480px] md:my-0 my-8 flex flex-col items-center md:items-start">
           {/* Logo */}
           <div className="flex justify-center md:justify-start mb-6 md:ml-2 w-full">
             <img src="/logo.svg" alt="Logo" className="h-8" />
@@ -86,7 +153,7 @@ export default function LoginPage() {
                     id="email"
                     name="email"
                     placeholder="e-mail@website.com"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full md:w-[384px] px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     value={loginEmail}
                     onChange={e => {
@@ -110,9 +177,17 @@ export default function LoginPage() {
                     id="password"
                     name="password"
                     placeholder="min. 8 caracteres"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full md:w-[384px] px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    value={loginPassword}
+                    onChange={e => setLoginPassword(e.target.value)}
                   />
+                  {loginError && (
+                    <p className="text-xs text-red-600 mt-1">{loginError}</p>
+                  )}
+                  {loginLoading && (
+                    <p className="text-xs text-blue-600 mt-1">Carregando...</p>
+                  )}
                 </div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="flex items-center text-sm text-gray-900">
@@ -123,13 +198,14 @@ export default function LoginPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-blue-900 text-white py-3 rounded-lg font-semibold text-base hover:bg-blue-800 transition"
+                  className="w-full md:w-[384px] bg-blue-900 text-white py-3 rounded-lg font-semibold text-base hover:bg-blue-800 transition"
+                  disabled={loginLoading}
                 >
-                  Entrar
+                  {loginLoading ? "Entrando..." : "Entrar"}
                 </button>
                 <button
                   type="button"
-                  className="w-full flex items-center justify-center gap-2 border border-gray-300 py-3 rounded-lg font-medium text-base bg-white text-gray-900 hover:bg-gray-50 transition mt-2"
+                  className="w-full md:w-[384px] flex items-center justify-center gap-2 border border-gray-300 py-3 rounded-lg font-medium text-base bg-white text-gray-900 hover:bg-gray-50 transition mt-2"
                 >
                   <img src="/google.svg" alt="Google" className="h-5 w-5" />
                   Entrar com o Google
@@ -154,7 +230,7 @@ export default function LoginPage() {
                     id="register-email"
                     name="register-email"
                     placeholder="e-mail@website.com"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full md:w-[384px] px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     value={registerEmail}
                     onChange={e => {
@@ -178,8 +254,10 @@ export default function LoginPage() {
                     id="register-password"
                     name="register-password"
                     placeholder="min. 8 caracteres"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full md:w-[384px] px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    value={registerPassword}
+                    onChange={e => setRegisterPassword(e.target.value)}
                   />
                 </div>
                 <div>
@@ -189,8 +267,23 @@ export default function LoginPage() {
                     id="register-confirm-password"
                     name="register-confirm-password"
                     placeholder="Digite a mesma senha escolhida"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full md:w-[384px] px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    value={registerConfirmPassword}
+                    onChange={e => setRegisterConfirmPassword(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="register-name" className="block text-sm font-medium text-gray-900 mb-1">Nome</label>
+                  <input
+                    type="text"
+                    id="register-name"
+                    name="register-name"
+                    placeholder="Seu nome completo"
+                    className="w-full md:w-[384px] px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    value={registerName}
+                    onChange={e => setRegisterName(e.target.value)}
                   />
                 </div>
                 <div className="flex items-center mb-2">
@@ -199,13 +292,19 @@ export default function LoginPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-blue-900 text-white py-3 rounded-lg font-semibold text-base hover:bg-blue-800 transition"
+                  className="w-full md:w-[384px] bg-blue-900 text-white py-3 rounded-lg font-semibold text-base hover:bg-blue-800 transition"
                 >
                   Cadastrar
                 </button>
+                {registerError && (
+                  <p className="text-xs text-red-600 mt-2">{registerError}</p>
+                )}
+                {registerSuccess && (
+                  <p className="text-xs text-green-600 mt-2">{registerSuccess}</p>
+                )}
                 <button
                   type="button"
-                  className="w-full flex items-center justify-center gap-2 border border-gray-300 py-3 rounded-lg font-medium text-base bg-white text-gray-900 hover:bg-gray-50 transition mt-2"
+                  className="w-full md:w-[384px] flex items-center justify-center gap-2 border border-gray-300 py-3 rounded-lg font-medium text-base bg-white text-gray-900 hover:bg-gray-50 transition mt-2"
                 >
                   <img src="/google.svg" alt="Google" className="h-5 w-5" />
                   Entrar com o Google
