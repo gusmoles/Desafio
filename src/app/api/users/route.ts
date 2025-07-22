@@ -13,9 +13,8 @@ export async function GET() {
         });
 
         return NextResponse.json({ users });
-    } catch (error) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        console.error('Database query error:', error);
+    } catch {
+        console.error('Database query error');
         return NextResponse.json(
             { error: 'Failed to fetch users' },
             { status: 500 }
@@ -37,9 +36,8 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email } });
-    } catch (error) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        console.error('Database create error:', error);
+    } catch {
+        console.error('Database create error');
         return NextResponse.json(
             { error: 'Failed to create user' },
             { status: 500 }
