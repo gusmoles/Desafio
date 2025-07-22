@@ -32,9 +32,14 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     const errorParam = searchParams.get("error");
+    console.log("URL error param:", errorParam);
     if (errorParam === "CredentialsSignin") {
       setTab('login');
       setLoginError("Credenciais inválidas, por favor tente novamente.");
+      // Clear the error parameter from URL to prevent reload loops
+      const url = new URL(window.location.href);
+      url.searchParams.delete("error");
+      window.history.replaceState({}, document.title, url.toString());
     }
   }, [searchParams]);
 
@@ -81,6 +86,8 @@ export default function LoginPage() {
 
   function handleLoginSubmit(e: React.FormEvent) {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
+    console.log("=== Login Submit Started ===");
     setLoginError("");
     setLoginLoading(true);
     if (!validateEmail(loginEmail)) {
@@ -88,19 +95,30 @@ export default function LoginPage() {
       setLoginLoading(false);
       return;
     }
+    console.log("LoginEmail:", loginEmail);
+    console.log("LoginPassword:", loginPassword);
     setLoginEmailError("");
+
+    console.log("About to call signIn...");
     signIn("credentials", {
       email: loginEmail,
       password: loginPassword,
       redirect: false,
     }).then((res) => {
+      console.log("=== SignIn Response ===", res);
       setLoginLoading(false);
       console.log("Resultado do signIn:", res); // DEBUG
       if (res?.ok === true && !res?.error) {
+        console.log("Login successful, navigating to /parabens");
         router.push("/parabens");
       } else {
+        console.log("Login failed:", res?.error);
         setLoginError("Credenciais inválidas, por favor tente novamente.");
       }
+    }).catch((error) => {
+      console.error("SignIn error:", error);
+      setLoginLoading(false);
+      setLoginError("Erro inesperado. Tente novamente.");
     });
   }
 
