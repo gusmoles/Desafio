@@ -14,6 +14,7 @@ export async function GET() {
 
         return NextResponse.json({ users });
     } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         console.error('Database query error:', error);
         return NextResponse.json(
             { error: 'Failed to fetch users' },
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email } });
     } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         console.error('Database create error:', error);
         return NextResponse.json(
             { error: 'Failed to create user' },
