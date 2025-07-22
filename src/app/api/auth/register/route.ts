@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ message: 'Usuário cadastrado com sucesso!', user: { id: user.id, email: user.email, name: user.name } }, { status: 201 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Erro ao cadastrar usuário.' }, { status: 500 });
   }
 } 
